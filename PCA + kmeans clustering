@@ -1,0 +1,66 @@
+from sklearn.decomposition import PCA
+import pandas as pd
+from sklearn.preprocessing import scale
+from sklearn.cluster import KMeans
+import collections
+import numpy as np
+from operator import itemgetter
+
+data = pd.read_csv('NextGen.csv')
+X = data.values
+X= scale(X)
+pca = PCA(n_components=15)
+pca.fit(X)
+
+## below is for checking which dimensions are important and which are not
+"""
+var = pca.explained_variance_ratio_
+var1 = np.cumsum(np.round(pca.explained_variance_ratio_, decimals=4)*100)
+plt.plot(var1)
+"""
+
+## transforming 15-Dimensional matrix to 12-D matrix
+pca=PCA(n_components=12)
+pca.fit(X)
+X1 = pca.fit_transform(X)
+
+
+## Below is the Elbow Method, with which I found that there are no real discrete clusters, but rather continuous, 
+## However, for faster runtime, I set the number of clusters to 4.
+"""
+Nc = range(1, 15)
+kmeans = [KMeans(n_clusters=i) for i in Nc]
+kmeans
+score = [kmeans[i].fit(X).score(X) for i in range(len(kmeans))]
+score
+pl.plot(Nc,score)
+pl.xlabel('Number of Clusters')
+pl.ylabel('Score')
+pl.title('Elbow Curve')
+pl.show()
+"""
+
+### Below you can see the actualy clustering. I use the K Mean method. 
+kmeans = KMeans(n_clusters=4).fit(X1)
+Z = kmeans.predict(X1)
+
+### Below I am checking which cluster is the biggest and thus the most important
+"""
+counter = collections.Counter(Z)
+print(counter)
+"""
+### Answer: Counter({2: 43726, 3: 24395, 1: 23801, 0: 8078})
+
+### In this case, change 2 to an arbitrarily number larger than 3, so that we can easily sort max
+### here we changed cluster name 2 to cluster name 4
+I = [4 if x==2 else x for x in Z]
+
+### add I as a new column to X1, 
+X3 = np.c_[X2, I]
+
+### sort the whole list after cluster number (biggest cluster to smallest cluster)
+X3 = sorted(X2, key=itemgetter(12), reverse=True)
+
+### export sorted list to csv
+X4 = pd.DataFrame(X3)
+X4.to_csv("NewNextGen.csv", header=None, index=None)
