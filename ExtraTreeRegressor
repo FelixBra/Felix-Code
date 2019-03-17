@@ -1,0 +1,99 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import matplotlib as mpl
+
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import train_test_split 
+from sklearn.ensemble import ExtraTreesRegressor
+
+train = pd.read_csv('PJ73.csv')
+
+# Drop useless variables 
+train.drop(labels = ["id","prmB","prmJ","prmO","prmAM","prmAX","prmBJ","outcome8","outcome2","outcome4","prmCF","outcome6","outcome7","outcome5","outcome8s","outcome9","out9s-flg1","out9s-flg2","out9s-flg3"], axis = 1, inplace = True)
+train["outcome1"] = train["outcome1"].fillna(0)
+train["outD-flg1"] = train["outD-flg1"].fillna(0)
+train["outD-flg2"] = train["outD-flg2"].fillna(0)
+train["outD-flg3"] = train["outD-flg3"].fillna(0)
+train["outD-flg4"] = train["outD-flg4"].fillna(0)
+train["outD-flg5"] = train["outD-flg5"].fillna(0)
+train["outD-flg6"] = train["outD-flg6"].fillna(0)
+train["outD-flg7"] = train["outD-flg7"].fillna(0)
+train["outD-flg8"] = train["outD-flg8"].fillna(0)
+train["prmCD"] = train["prmCD"].fillna(0)
+train["CD-flg1"] = train["CD-flg1"].fillna(0)
+train["CD-flg2"] = train["CD-flg2"].fillna(0)
+train["CD-flg3"] = train["CD-flg3"].fillna(0)
+
+train = train.fillna(train.median())
+train = train.astype(np.float64)
+
+Y0_train = train["outcome3"]
+X0_train = train.drop(labels = ["outcome3"],axis = 1)
+
+X_train, X_test, Y_train,Y_test = train_test_split(X0_train, Y0_train, test_size=0.30, random_state=0)
+
+
+# Check feature importance (ExtraTreesClassifier)
+forest = ExtraTreesRegressor(n_estimators=1000,
+                              random_state=0)
+
+forest.fit(X_train, Y_train)
+s = forest.predict(X_train)
+
+importances = forest.feature_importances_
+imp_df = pd.DataFrame({'feature': X_train.columns.values,
+                       'importance': importances})
+
+top10_df = imp_df.nlargest(10, 'importance')
+
+## Barplot with confidence intervals
+height = top10_df['importance']
+bars = top10_df['feature']
+y_pos = np.arange(len(bars))
+
+# Create horizontal bars
+plt.subplots() 
+plt.barh(y_pos, height)
+ 
+# Create names on the y-axis
+plt.yticks(y_pos, bars)
+
+plt.xlabel("importance")
+plt.ylabel("feature")
+plt.title("Top 10 features (ExtraTrees)")
+plt.tight_layout()
+# Show graphic
+plt.show()    
+
+# Reorder by importance
+ordered_df = imp_df.sort_values(by='importance')
+
+## Barplot with confidence intervals
+height = ordered_df['importance']
+bars = ordered_df['feature']
+y_pos = np.arange(len(bars))
+
+# Create horizontal bars
+plt.subplots() 
+plt.barh(y_pos, height)
+ 
+# Create names on the y-axis
+plt.yticks(y_pos, bars)
+
+plt.xlabel("importance")
+plt.ylabel("feature")
+plt.title("features importance distribution (ExtraTrees)")
+plt.tight_layout()
+# Show graphic
+plt.show()    
+
+user_input_row = int(input("Guess outcome3 for which row?:"))
+X0_train_specificrows = X0_train.iloc[user_input_row]
+ExtraForestPrediction = forest.predict([X0_train_specificrows])
+#ExtraForestProbability = forest.predict_proba([X_train_specificrows])
+print("The predicted outcome3 for that row is:", float(ExtraForestPrediction))
+#rint("R^2 score:", forest.score([X_train.iloc[user_input_row]],[Y_train.iloc[user_input_row]]))
+print("R^2:", forest.score(X_test, Y_test))
+5
