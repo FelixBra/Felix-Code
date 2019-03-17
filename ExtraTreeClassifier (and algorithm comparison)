@@ -1,0 +1,211 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import matplotlib as mpl
+
+from sklearn.model_selection import cross_val_score
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.svm import SVC
+from sklearn.model_selection import StratifiedKFold
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.ensemble import ExtraTreesClassifier, GradientBoostingClassifier
+
+from sklearn.multiclass import OneVsRestClassifier
+
+train = pd.read_csv('PJ71.csv')
+
+
+# Fill empty and NaNs values with NaN
+#train = train.fillna(np.nan)
+
+#print(train)
+
+## drop rows where 
+##train = train[pd.notnull(train['prmC'])]
+
+
+
+# Drop useless variables 
+train.drop(labels = ["id","prmAM","prmAX","prmBJ"], axis = 1, inplace = True)
+
+#print(train)
+
+#Fill nan values of dataset set
+##train["prmC"] = train["prmC"].fillna(0)
+##train["prmD"] = train["prmD"].fillna(0)
+train["outcome1"] = train["outcome1"].fillna(0)
+train["outD-flg1"] = train["outD-flg1"].fillna(0)
+train["outD-flg2"] = train["outD-flg2"].fillna(0)
+train["outD-flg3"] = train["outD-flg3"].fillna(0)
+train["outD-flg4"] = train["outD-flg4"].fillna(0)
+train["outD-flg5"] = train["outD-flg5"].fillna(0)
+train["outD-flg6"] = train["outD-flg6"].fillna(0)
+train["outD-flg7"] = train["outD-flg7"].fillna(0)
+train["outD-flg8"] = train["outD-flg8"].fillna(0)
+
+###fill nan values with respective column mean
+train = train.fillna(train.median())
+train = train.astype(np.float64)
+
+"""
+train["prmF"] = train["prmF"].fillna(train["prmF"].median())
+train["prmG"] = train["prmG"].fillna(train["prmG"].median())
+train["prmH"] = train["prmH"].fillna(train["prmH"].median())
+"""
+
+Y_train = train["outcome1"].astype(int)
+X_train = train.drop(labels = ["outcome1","outD-flg1","outD-flg2","outD-flg3","outD-flg4","outD-flg5","outD-flg6","outD-flg7","outD-flg8"],axis = 1)
+
+df1 = train["outD-flg1"]
+df2 = train["outD-flg2"]
+df3 = train["outD-flg3"]
+df4 = train["outD-flg4"]
+df5 = train["outD-flg5"]
+df6 = train["outD-flg6"]
+df7 = train["outD-flg7"]
+df8 = train["outD-flg8"]
+
+frames = [df1, df2, df3, df4, df5, df6, df7, df8]
+result = pd.concat(frames, axis=1)
+
+
+##find out correlations (importance of specific features on outcome1)
+##g = sns.heatmap(train[["outcome1","prmM","prmN","prmP","P-flg1","P-flg2","P-flg3","prmQ","Q-flg1","Q-flg2"]].corr(),annot=True, fmt = ".2f", cmap = "coolwarm")
+#g = sns.catplot(x="prmC",y="outcome1",data=train,kind="bar")
+#g = g.set_ylabels("Probability")
+##print(train["outcome1"].corr(train["prmD"]))
+
+##print(train.dtypes)
+"""
+#check for nans and where they are
+print(np.any(np.isnan(train)))
+print(np.all(np.isfinite(train)))
+print(train.isnull().values.any())
+print(np.argwhere(train.isnull().sum()))
+print(train.columns[82])
+print(train.columns[93])
+print(train.columns[105])
+#print(train.loc[: , "prmAN"])
+"""
+##check which column has missing values
+"""
+print(train.isnull().sum().tail())
+"""
+
+
+# Cross validate model with Kfold stratified cross val
+kfold = StratifiedKFold(n_splits=10)
+# Modeling step Test differents algorithms 
+random_state = 2
+classifiers = []
+classifiers.append(SVC(random_state=random_state))
+classifiers.append(DecisionTreeClassifier(random_state=random_state))
+classifiers.append(AdaBoostClassifier(DecisionTreeClassifier(random_state=random_state),random_state=random_state,learning_rate=0.1))
+classifiers.append(RandomForestClassifier(random_state=random_state))
+classifiers.append(ExtraTreesClassifier(random_state=random_state))
+classifiers.append(GradientBoostingClassifier(random_state=random_state))
+classifiers.append(MLPClassifier(random_state=random_state))
+classifiers.append(KNeighborsClassifier())
+classifiers.append(LogisticRegression(random_state = random_state))
+classifiers.append(LinearDiscriminantAnalysis())
+
+cv_results = []
+for classifier in classifiers :
+    cv_results.append(cross_val_score(classifier, X_train, y = Y_train, scoring = 'f1_macro', cv = kfold, n_jobs=4))
+
+cv_means = []
+cv_std = []
+for cv_result in cv_results:
+    cv_means.append(cv_result.mean())
+    cv_std.append(cv_result.std())
+
+cv_res = pd.DataFrame({"CrossValMeans":cv_means,"CrossValerrors": cv_std,"Algorithm":["SVC","DecisionTree","AdaBoost",
+"RandomForest","ExtraTrees","GradientBoosting","MultipleLayerPerceptron","KNeighboors","LogisticRegression","LinearDiscriminantAnalysis"]})
+
+#g = plt.subplots()   
+g = sns.barplot("CrossValMeans","Algorithm",data = cv_res, palette="Set3",orient = "h",**{'xerr':cv_std})
+g.set_xlabel("Mean")
+g.set_title("f1 scores (cross-validation)")
+
+
+
+# Check feature importance (ExtraTreesClassifier)
+forest = ExtraTreesClassifier(n_estimators=100,
+                              random_state=0)
+
+forest.fit(X_train, Y_train)
+
+
+
+## Extra trees:
+
+### Y
+importances = forest.feature_importances_
+
+imp_df = pd.DataFrame({'feature': X_train.columns.values,
+                       'importance': importances})
+
+top10_df = imp_df.nlargest(10, 'importance')
+
+## Barplot with confidence intervals
+height = top10_df['importance']
+bars = top10_df['feature']
+y_pos = np.arange(len(bars))
+
+# Create horizontal bars
+plt.subplots() 
+plt.barh(y_pos, height)
+ 
+# Create names on the y-axis
+plt.yticks(y_pos, bars)
+
+plt.xlabel("importance")
+plt.ylabel("feature")
+plt.title("Top 10 features (ExtraTrees)")
+plt.tight_layout()
+# Show graphic
+plt.show()    
+
+# Reorder by importance
+ordered_df = imp_df.sort_values(by='importance')
+
+## Barplot with confidence intervals
+height = ordered_df['importance']
+bars = ordered_df['feature']
+y_pos = np.arange(len(bars))
+
+# Create horizontal bars
+plt.subplots() 
+plt.barh(y_pos, height)
+ 
+# Create names on the y-axis
+plt.yticks(y_pos, bars)
+
+plt.xlabel("importance")
+plt.ylabel("feature")
+plt.title("features importance distribution (ExtraTrees)")
+plt.tight_layout()
+# Show graphic
+plt.show()    
+
+
+
+# User can decide for which row to predict outcome1 
+
+user_input_row = int(input("Guess outcome1 for which row?:"))
+X_train_specificrows = X_train.iloc[user_input_row]
+ExtraForestPrediction = forest.predict([X_train_specificrows])
+#ExtraForestProbability = forest.predict_proba([X_train_specificrows])
+print("The predicted outcome1 for that row is:", ExtraForestPrediction)
+#print("probability is:" , ExtraForestProbability)
+
+
+
+ovr_rf = OneVsRestClassifier(RandomForestClassifier(n_estimators=100,random_state=0)).fit(X_train, result)
+OVRPrediction = ovr_rf.predict([X_train_specificrows])
+print("The predicted flag for that row is:", OVRPrediction)
